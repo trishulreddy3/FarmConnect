@@ -1,135 +1,139 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  TrendingUp, 
-  ShoppingCart, 
-  DollarSign, 
-  Package, 
-  Calendar,
-  MapPin,
-  Star,
-  BarChart3,
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
   PieChart,
-  Activity
-} from 'lucide-react';
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar
+} from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, Package, Users, Calendar, ShoppingCart, FileText } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Contract, Crop } from '../../types';
+import { Contract, Crop, Order } from '../../types';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
-
-interface Order {
-  id: string;
-  cropId: string;
-  cropName: string;
-  farmerId: string;
-  farmerName: string;
-  quantity: number;
-  unit: string;
-  pricePerUnit: number;
-  totalAmount: number;
-  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
-  orderDate: Date;
-  deliveryDate?: Date;
-  location: string;
-}
 
 const BuyerAnalyticsDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [crops, setCrops] = useState<Crop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
 
   useEffect(() => {
     if (!currentUser) return;
 
-    // Fetch orders
-    const ordersQuery = query(
-      collection(db, 'orders'),
-      where('buyerId', '==', currentUser.uid),
-      orderBy('orderDate', 'desc')
+    const unsubscribeOrders = onSnapshot(
+      query(
+        collection(db, 'orders'),
+        where('buyerId', '==', currentUser.uid),
+        orderBy('orderDate', 'desc')
+      ),
+      (snapshot) => {
+        const ordersData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          orderDate: doc.data().orderDate?.toDate() || new Date()
+        })) as Order[];
+        setOrders(ordersData);
+      }
     );
 
-    const ordersUnsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        orderDate: doc.data().orderDate?.toDate() || new Date(),
-        deliveryDate: doc.data().deliveryDate?.toDate() || null
-      })) as Order[];
-      
-      setOrders(ordersData);
-    });
-
-    // Fetch contracts
-    const contractsQuery = query(
-      collection(db, 'contracts'),
-      where('buyerId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc')
+    const unsubscribeContracts = onSnapshot(
+      query(
+        collection(db, 'contracts'),
+        where('buyerId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const contractsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          requiredBy: doc.data().requiredBy?.toDate() || new Date()
+        })) as Contract[];
+        setContracts(contractsData);
+      }
     );
 
-    const contractsUnsubscribe = onSnapshot(contractsQuery, (snapshot) => {
-      const contractsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        requiredBy: doc.data().requiredBy?.toDate() || new Date(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as Contract[];
-      
-      setContracts(contractsData);
-      setLoading(false);
-    });
+    const unsubscribeCrops = onSnapshot(
+      query(
+        collection(db, 'crops'),
+        where('status', '==', 'available'),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const cropsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          harvestDate: doc.data().harvestDate?.toDate() || new Date(),
+          expiryDate: doc.data().expiryDate?.toDate() || new Date(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate() || new Date()
+        })) as Crop[];
+        setCrops(cropsData);
+      }
+    );
+
+    setLoading(false);
 
     return () => {
-      ordersUnsubscribe();
-      contractsUnsubscribe();
+      unsubscribeOrders();
+      unsubscribeContracts();
+      unsubscribeCrops();
     };
   }, [currentUser]);
 
-  // Calculate analytics
-  const totalOrders = orders.length;
+  // Calculate analytics data
   const totalSpent = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const averageOrderValue = totalOrders > 0 ? totalSpent / totalOrders : 0;
+  const totalOrders = orders.length;
   const activeContracts = contracts.filter(c => c.status === 'open' || c.status === 'negotiating').length;
+  const completedOrders = orders.filter(o => o.status === 'delivered').length;
+  const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
 
-  // Monthly data
-  const currentMonth = new Date();
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  
-  const monthlyOrders = orders.filter(order => 
-    order.orderDate >= monthStart && order.orderDate <= monthEnd
-  );
-  const monthlySpent = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  // Sample data for charts - replace with real data
+  const spendingData = [
+    { name: 'Jan', amount: 1200 },
+    { name: 'Feb', amount: 1500 },
+    { name: 'Mar', amount: 1800 },
+    { name: 'Apr', amount: 2200 },
+    { name: 'May', amount: 1900 },
+    { name: 'Jun', amount: 2500 },
+  ];
 
-  // Status distribution
-  const statusDistribution = orders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const orderStatusData = [
+    { name: 'Delivered', value: completedOrders, color: '#10B981' },
+    { name: 'Pending', value: pendingOrders, color: '#F59E0B' },
+    { name: 'Cancelled', value: orders.filter(o => o.status === 'cancelled').length, color: '#EF4444' }
+  ];
 
-  // Top farmers
-  const farmerStats = orders.reduce((acc, order) => {
-    if (!acc[order.farmerId]) {
-      acc[order.farmerId] = {
-        farmerName: order.farmerName,
-        totalOrders: 0,
-        totalSpent: 0
-      };
-    }
-    acc[order.farmerId].totalOrders += 1;
-    acc[order.farmerId].totalSpent += order.totalAmount;
-    return acc;
-  }, {} as Record<string, { farmerName: string; totalOrders: number; totalSpent: number }>);
+  const topFarmers = [
+    { name: 'Green Valley Farm', performance: 85, color: '#10B981' },
+    { name: 'Sunrise Agriculture', performance: 72, color: '#3B82F6' },
+    { name: 'Mountain View Farms', performance: 68, color: '#F59E0B' },
+    { name: 'River Side Produce', performance: 55, color: '#8B5CF6' },
+  ];
 
-  const topFarmers = Object.values(farmerStats)
-    .sort((a, b) => b.totalSpent - a.totalSpent)
-    .slice(0, 5);
+  const recentActivity = [
+    { id: 1, action: 'Order placed: Tomatoes', time: '2 hours ago', icon: '🛒', color: 'text-blue-500' },
+    { id: 2, action: 'Contract accepted: Wheat', time: '5 hours ago', icon: '✅', color: 'text-green-500' },
+    { id: 3, action: 'Message received from farmer', time: '1 day ago', icon: '💬', color: 'text-purple-500' },
+    { id: 4, action: 'Order delivered: Rice', time: '2 days ago', icon: '📦', color: 'text-orange-500' },
+  ];
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -138,229 +142,178 @@ const BuyerAnalyticsDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
-          <p className="text-gray-600 mt-1">Track your purchasing activity and performance</p>
-        </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-500">
-          <Calendar className="w-4 h-4" />
-          <span>Last updated: {format(new Date(), 'MMM dd, yyyy')}</span>
-        </div>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Buyer Analytics</h2>
+        <select
+          value={selectedPeriod}
+          onChange={(e) => setSelectedPeriod(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="year">Year</option>
+        </select>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Orders</p>
-              <p className="text-3xl font-bold text-gray-900">{totalOrders}</p>
+              <p className="text-sm font-medium text-gray-600">Total Spent</p>
+              <p className="text-2xl font-bold text-blue-600">${totalSpent.toFixed(2)}</p>
+              <p className="text-sm text-blue-600 flex items-center">
+                <TrendingUp className="h-4 w-4 mr-1" />
+                +15% from last month
+              </p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <ShoppingCart className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 font-medium">+{monthlyOrders.length} this month</span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Spent</p>
-              <p className="text-3xl font-bold text-gray-900">${totalSpent.toFixed(2)}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <DollarSign className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-blue-100 rounded-full">
+              <DollarSign className="h-6 w-6 text-blue-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 font-medium">${monthlySpent.toFixed(2)} this month</span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Avg Order Value</p>
-              <p className="text-3xl font-bold text-gray-900">${averageOrderValue.toFixed(2)}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <BarChart3 className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <Activity className="w-4 h-4 text-purple-500 mr-1" />
-            <span className="text-purple-600 font-medium">Per order</span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Active Contracts</p>
-              <p className="text-3xl font-bold text-gray-900">{activeContracts}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-xl">
-              <FileText className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-orange-500 mr-1" />
-            <span className="text-orange-600 font-medium">In progress</span>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Order Status Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Order Status</h3>
-            <PieChart className="w-5 h-5 text-gray-400" />
-          </div>
-          
-          <div className="space-y-4">
-            {Object.entries(statusDistribution).map(([status, count]) => {
-              const percentage = totalOrders > 0 ? (count / totalOrders) * 100 : 0;
-              const statusColors = {
-                pending: 'bg-yellow-500',
-                confirmed: 'bg-blue-500',
-                shipped: 'bg-purple-500',
-                delivered: 'bg-green-500',
-                cancelled: 'bg-red-500'
-              };
-              
-              return (
-                <div key={status} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full ${statusColors[status as keyof typeof statusColors] || 'bg-gray-500'} mr-3`}></div>
-                    <span className="text-sm font-medium text-gray-700 capitalize">{status}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">{count}</span>
-                    <span className="text-xs text-gray-500">({percentage.toFixed(1)}%)</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Top Farmers */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Top Farmers</h3>
-            <Star className="w-5 h-5 text-gray-400" />
-          </div>
-          
-          <div className="space-y-4">
-            {topFarmers.length > 0 ? (
-              topFarmers.map((farmer, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{farmer.farmerName}</p>
-                      <p className="text-xs text-gray-500">{farmer.totalOrders} orders</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-semibold text-green-600">${farmer.totalSpent.toFixed(2)}</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <Package className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-                <p className="text-gray-500 text-sm">No orders yet</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Recent Orders */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
-          <Calendar className="w-5 h-5 text-gray-400" />
         </div>
-        
-        <div className="space-y-4">
-          {orders.slice(0, 5).map((order) => (
-            <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Package className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{order.cropName}</p>
-                  <p className="text-xs text-gray-500">from {order.farmerName}</p>
-                </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Orders</p>
+              <p className="text-2xl font-bold text-green-600">{totalOrders}</p>
+              <p className="text-sm text-gray-500">{completedOrders} completed</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-full">
+              <ShoppingCart className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active Contracts</p>
+              <p className="text-2xl font-bold text-orange-600">{activeContracts}</p>
+              <p className="text-sm text-green-600 flex items-center">
+                <TrendingUp className="h-4 w-4 mr-1" />
+                +3 this month
+              </p>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-full">
+              <FileText className="h-6 w-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Available Crops</p>
+              <p className="text-2xl font-bold text-purple-600">{crops.length}</p>
+              <p className="text-sm text-gray-500">From {new Set(crops.map(c => c.farmerId)).size} farmers</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-full">
+              <Package className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Spending Trend */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Spending Trend</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={spendingData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip formatter={(value) => [`$${value}`, 'Spending']} />
+              <Area
+                type="monotone"
+                dataKey="amount"
+                stroke="#3B82F6"
+                fill="#3B82F6"
+                fillOpacity={0.1}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Order Status Distribution */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={orderStatusData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {orderStatusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex justify-center space-x-6 mt-4">
+            {orderStatusData.map((item, index) => (
+              <div key={index} className="flex items-center">
+                <div
+                  className="w-3 h-3 rounded-full mr-2"
+                  style={{ backgroundColor: item.color }}
+                ></div>
+                <span className="text-sm text-gray-600">{item.name}</span>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-900">${order.totalAmount.toFixed(2)}</p>
-                <p className={`text-xs font-medium ${
-                  order.status === 'delivered' ? 'text-green-600' :
-                  order.status === 'pending' ? 'text-yellow-600' :
-                  order.status === 'cancelled' ? 'text-red-600' :
-                  'text-blue-600'
-                }`}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Top Farmers */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Farmers by Spending</h3>
+        <div className="space-y-4">
+          {topFarmers.map((farmer, index) => (
+            <div key={index} className="flex items-center">
+              <div className="flex-1">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium text-gray-700">{farmer.name}</span>
+                  <span className="text-sm font-semibold text-gray-900">{farmer.performance}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${farmer.performance}%`,
+                      backgroundColor: farmer.color
+                    }}
+                  ></div>
+                </div>
               </div>
             </div>
           ))}
-          
-          {orders.length === 0 && (
-            <div className="text-center py-8">
-              <ShoppingCart className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-              <p className="text-gray-500 text-sm">No orders yet</p>
-              <p className="text-gray-400 text-xs mt-1">Start browsing crops to place your first order!</p>
-            </div>
-          )}
         </div>
-      </motion.div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+        <div className="space-y-3">
+          {recentActivity.map((activity) => (
+            <div key={activity.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-lg mr-3">{activity.icon}</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                <p className="text-xs text-gray-500">{activity.time}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
