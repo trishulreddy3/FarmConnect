@@ -509,7 +509,6 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
               </div>
             </motion.div>
           )}
-        </motion.div>
       )}
     </AnimatePresence>
 
