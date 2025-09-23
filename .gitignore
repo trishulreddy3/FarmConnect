@@ -153,3 +153,6 @@ out/
 # Temporary files
 tmp/
 temp/
+
+# Bolt.new files
+.bolt/
