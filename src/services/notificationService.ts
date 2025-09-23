@@ -30,7 +30,7 @@ class NotificationService {
       userId: orderData.farmerId,
       type: 'order_placed',
       title: 'New Order Received!',
-      message: `${orderData.buyerName} has placed an order for ${orderData.quantity} ${orderData.unit} of ${orderData.cropName} worth $${orderData.totalAmount.toFixed(2)}`,
+      message: `${orderData.buyerName || 'A buyer'} has placed an order for ${orderData.quantity} ${orderData.unit} of ${orderData.cropName} worth $${orderData.totalAmount.toFixed(2)}`,
       data: {
         orderId: orderData.orderId,
         buyerName: orderData.buyerName,

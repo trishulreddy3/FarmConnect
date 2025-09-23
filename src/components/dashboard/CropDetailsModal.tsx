@@ -165,13 +165,15 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={onClose}
-      >
+      {isOpen && (
+        <motion.div
+          key="crop-details-modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={onClose}
+        >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -421,6 +423,7 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
           {/* Contract Form Modal */}
           {showContractForm && (
             <motion.div
+              key="contract-form-modal"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute inset-0 bg-white rounded-2xl p-6"
@@ -507,17 +510,17 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
             </motion.div>
           )}
         </motion.div>
-      </motion.div>
-
-      {/* Contract Creation Modal */}
-      <ContractCreationModal
-        isOpen={showContractCreation}
-        onClose={() => setShowContractCreation(false)}
-        crop={crop}
-        targetFarmerId={crop.farmerId}
-        targetFarmerName={crop.farmerName}
-      />
+      )}
     </AnimatePresence>
+
+    {/* Contract Creation Modal */}
+    <ContractCreationModal
+      isOpen={showContractCreation}
+      onClose={() => setShowContractCreation(false)}
+      crop={crop}
+      targetFarmerId={crop.farmerId}
+      targetFarmerName={crop.farmerName}
+    />
   );
 };
 

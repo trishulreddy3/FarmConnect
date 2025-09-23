@@ -98,7 +98,7 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
       // Create order
       const orderData_firestore: Omit<Order, 'id'> = {
         buyerId: currentUser.uid,
-        buyerName: currentUser.displayName,
+        buyerName: currentUser.displayName || currentUser.email || 'Unknown Buyer',
         farmerId: crop.farmerId,
         farmerName: crop.farmerName,
         cropId: crop.id,
