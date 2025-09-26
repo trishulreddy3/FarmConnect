@@ -20,18 +20,22 @@ const CropList: React.FC = () => {
 
     const q = query(
       collection(db, 'crops'),
-      where('farmerId', '==', currentUser.uid)
+      where('farmerId', '==', currentUser.uid),
+      where('status', 'in', ['available', 'reserved', 'sold_out'])
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cropsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        harvestDate: doc.data().harvestDate?.toDate() || new Date(),
-        expiryDate: doc.data().expiryDate?.toDate() || new Date(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as Crop[];
+      const cropsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          harvestDate: data.harvestDate?.toDate ? data.harvestDate.toDate() : (data.harvestDate || new Date()),
+          expiryDate: data.expiryDate?.toDate ? data.expiryDate.toDate() : (data.expiryDate || new Date()),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date()),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt || new Date())
+        };
+      }) as Crop[];
       
       setCrops(cropsData);
       setLoading(false);
@@ -110,9 +114,11 @@ const CropList: React.FC = () => {
                     ? 'bg-green-100 text-green-800'
                     : crop.status === 'reserved'
                     ? 'bg-orange-100 text-orange-800'
+                    : crop.status === 'sold_out'
+                    ? 'bg-red-100 text-red-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {crop.status.charAt(0).toUpperCase() + crop.status.slice(1)}
+                  {crop.status === 'sold_out' ? 'Sold Out' : crop.status.charAt(0).toUpperCase() + crop.status.slice(1)}
                 </span>
               </div>
 
@@ -141,10 +147,12 @@ const CropList: React.FC = () => {
                 value={crop.status}
                 onChange={(e) => handleStatusChange(crop.id, e.target.value)}
                 className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                disabled={crop.status === 'sold_out'}
               >
                 <option value="available">Available</option>
                 <option value="reserved">Reserved</option>
                 <option value="sold">Sold</option>
+                <option value="sold_out" disabled>Sold Out</option>
               </select>
 
               <button

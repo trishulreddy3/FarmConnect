@@ -1,20 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, MessageCircle, FileText, ShoppingCart, TrendingDown, Package, Clock, Store, Settings, BarChart3 } from 'lucide-react';
+import { Search, Plus, MessageCircle, FileText, ShoppingCart, TrendingDown, Package, Clock, Store, Settings, BarChart3, Bell } from 'lucide-react';
 import CropSearch from './CropSearch';
 import ContractForm from './ContractForm';
 import ContractsList from './ContractsList';
 import ChatsList from './ChatsList';
 import OrdersList from './OrdersList';
+import BuyerOrders from './BuyerOrders';
 import MarketplaceDashboard from './MarketplaceDashboard';
 import BuyerAnalyticsDashboard from './BuyerAnalyticsDashboard';
 import SettingsPage from './SettingsPage';
 import WeatherWidget from '../widgets/WeatherWidget';
 import ModernDashboardWrapper from './ModernDashboardWrapper';
+import NotificationCenter from './NotificationCenter';
+import RecentOrders from './RecentOrders';
+import { useAuth } from '../../contexts/AuthContext';
+import NotificationService from '../../services/notificationService';
+import { BrowserNotificationService } from '../../services/browserNotificationService';
+import { AppNotification } from '../../types';
 
 const BuyerDashboard: React.FC = () => {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('search');
   const [showContractForm, setShowContractForm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState<AppNotification[]>([]);
+
+  // Listen for notifications
+  useEffect(() => {
+    if (!currentUser) {
+      setUnreadNotifications([]);
+      return;
+    }
+
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = NotificationService.subscribeToNotifications(
+        currentUser.uid,
+        (notifications) => {
+          const unread = notifications.filter(n => !n.isRead);
+          setUnreadNotifications(unread);
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up notifications subscription:', error);
+      setUnreadNotifications([]);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('Error unsubscribing from notifications:', error);
+        }
+      }
+    };
+  }, [currentUser]);
 
   const tabs = [
     { id: 'marketplace', name: 'Marketplace', icon: Store },
@@ -52,6 +95,59 @@ const BuyerDashboard: React.FC = () => {
             
             {/* Quick Actions */}
             <div className="flex space-x-3">
+              {/* Notification Bell */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowNotifications(true)}
+                className="relative flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Bell className="w-4 h-4" />
+                <span>Notifications</span>
+                {unreadNotifications.length > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {unreadNotifications.length}
+                  </div>
+                )}
+              </motion.button>
+
+              {/* Test Notification Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('Test notification button clicked');
+                  console.log('BrowserNotificationService available:', typeof BrowserNotificationService);
+                  
+                  try {
+                    BrowserNotificationService.showNotification(
+                      '🧪 Test Notification - Buyer',
+                      {
+                        body: `Hello ${currentUser?.displayName || 'Buyer'}! This is a test notification from your buyer dashboard.`,
+                        tag: 'buyer-test-notification',
+                        requireInteraction: true
+                      }
+                    );
+                    console.log('Notification sent successfully');
+                  } catch (error) {
+                    console.error('Error calling BrowserNotificationService:', error);
+                    // Fallback notification
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                      new Notification('🧪 Test Notification - Buyer', {
+                        body: `Hello ${currentUser?.displayName || 'Buyer'}! This is a test notification from your buyer dashboard.`,
+                        icon: '/favicon.png'
+                      });
+                    } else {
+                      alert('Notifications not available. Please enable notifications in your browser settings.');
+                    }
+                  }
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Bell className="w-4 h-4" />
+                <span>Test Notification</span>
+              </motion.button>
+
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -99,6 +195,29 @@ const BuyerDashboard: React.FC = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Recent Orders */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 mb-8"
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                Recent Orders
+              </h2>
+              <button
+                onClick={() => setActiveTab('orders')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View All
+              </button>
+            </div>
+            <RecentOrders userType="buyer" limitCount={3} />
+          </div>
+        </motion.div>
 
         {/* Navigation Tabs */}
         <motion.div 
@@ -199,10 +318,7 @@ const BuyerDashboard: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <h2 className="text-2xl font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-6">
-                    My Orders
-                  </h2>
-                  <OrdersList />
+                  <BuyerOrders />
                 </motion.div>
               )}
 
@@ -238,7 +354,13 @@ const BuyerDashboard: React.FC = () => {
         {showContractForm && (
           <ContractForm onClose={() => setShowContractForm(false)} />
         )}
-        
+
+        {showNotifications && (
+          <NotificationCenter
+            isOpen={showNotifications}
+            onClose={() => setShowNotifications(false)}
+          />
+        )}
       </AnimatePresence>
     </ModernDashboardWrapper>
   );

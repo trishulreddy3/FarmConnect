@@ -57,6 +57,12 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent multiple submissions
+    if (loading) {
+      console.log('Order submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
     if (!currentUser) {
       toast.error('Please sign in to place orders');
       return;
@@ -89,10 +95,16 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
       // Debug: Log crop data to check for undefined values
       console.log('Crop data:', crop);
       console.log('Order data:', orderData);
+      console.log('Current user:', currentUser);
       
       // Validate crop data
       if (!crop.id || !crop.farmerId || !crop.cropName) {
         throw new Error('Invalid crop data: missing required fields');
+      }
+      
+      // Validate user authentication
+      if (!currentUser || !currentUser.uid) {
+        throw new Error('User not authenticated');
       }
       
       // Create order
@@ -122,22 +134,32 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
       const cleanedOrderData = cleanFirestoreData(orderData_firestore);
       
+      console.log('Creating order with data:', cleanedOrderData);
+      
       const orderRef = await addDoc(collection(db, 'orders'), {
         ...cleanedOrderData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      // Send notification to farmer
-      await NotificationService.notifyOrderPlaced({
-        farmerId: crop.farmerId,
-        buyerName: currentUser.displayName,
-        cropName: crop.cropName,
-        quantity: orderData.quantity,
-        unit: crop.unit,
-        totalAmount: totalAmount,
-        orderId: orderRef.id
-      });
+      console.log('Order created successfully with ID:', orderRef.id);
+
+      // Send notification to farmer (with error handling)
+      try {
+        await NotificationService.notifyOrderPlaced({
+          farmerId: crop.farmerId,
+          buyerName: currentUser.displayName,
+          cropName: crop.cropName,
+          quantity: orderData.quantity,
+          unit: crop.unit,
+          totalAmount: totalAmount,
+          orderId: orderRef.id
+        });
+        console.log('Notification sent successfully');
+      } catch (notificationError) {
+        console.error('Failed to send notification, but order was created:', notificationError);
+        // Don't fail the entire order creation if notification fails
+      }
 
       // Update crop quantity
       const newQuantity = crop.quantity - orderData.quantity;
@@ -160,10 +182,14 @@ const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
       console.error('Error placing order:', error);
       
       // Show more specific error messages
-      if (error.message?.includes('invalid data')) {
+      if (error.message?.includes('Missing or insufficient permissions')) {
+        toast.error('Permission denied. Please make sure you are logged in and try again.');
+      } else if (error.message?.includes('invalid data')) {
         toast.error('Invalid order data. Please check all fields and try again.');
       } else if (error.message?.includes('Invalid crop data')) {
         toast.error('Invalid crop information. Please refresh and try again.');
+      } else if (error.message?.includes('User not authenticated')) {
+        toast.error('Please sign in to place orders.');
       } else {
         toast.error('Failed to place order. Please try again.');
       }

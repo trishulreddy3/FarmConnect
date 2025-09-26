@@ -143,3 +143,4 @@ const WeatherWidget: React.FC = () => {
 };
 
 export default WeatherWidget;
+

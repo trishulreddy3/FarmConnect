@@ -143,3 +143,4 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
 };
 
 export default QRCodeGenerator;
+

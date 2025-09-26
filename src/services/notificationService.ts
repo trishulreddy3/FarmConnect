@@ -1,15 +1,25 @@
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, updateDoc, doc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Notification } from '../types';
+import { AppNotification } from '../types';
+import BrowserNotificationService from './browserNotificationService';
 
 class NotificationService {
   // Create a notification
-  static async createNotification(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<void> {
+  static async createNotification(notification: Omit<AppNotification, 'id' | 'createdAt'>): Promise<void> {
     try {
-      await addDoc(collection(db, 'notifications'), {
+      const docRef = await addDoc(collection(db, 'notifications'), {
         ...notification,
         createdAt: serverTimestamp()
       });
+
+      // Show browser notification for new notifications
+      const fullNotification: AppNotification = {
+        id: docRef.id,
+        ...notification,
+        createdAt: new Date()
+      };
+      
+      BrowserNotificationService.showNotificationByType(fullNotification);
     } catch (error) {
       console.error('Error creating notification:', error);
       throw error;
@@ -26,7 +36,14 @@ class NotificationService {
     totalAmount: number;
     orderId: string;
   }): Promise<void> {
-    const notification: Omit<Notification, 'id' | 'createdAt'> = {
+    // Check if notification already exists for this order
+    const existingNotifications = await this.getNotificationsByOrderId(orderData.orderId);
+    if (existingNotifications.length > 0) {
+      console.log('Notification already exists for order:', orderData.orderId);
+      return;
+    }
+
+    const notification: Omit<AppNotification, 'id' | 'createdAt'> = {
       userId: orderData.farmerId,
       type: 'order_placed',
       title: 'New Order Received!',
@@ -41,6 +58,19 @@ class NotificationService {
     };
 
     await this.createNotification(notification);
+  }
+
+  // Helper method to check for existing notifications
+  static async getNotificationsByOrderId(orderId: string): Promise<AppNotification[]> {
+    try {
+      // For now, we'll skip the duplicate check to avoid permission issues
+      // The duplicate prevention will be handled at the application level
+      console.log('Skipping duplicate notification check for order:', orderId);
+      return [];
+    } catch (error) {
+      console.error('Error getting notifications by order ID:', error);
+      return [];
+    }
   }
 
   // Create order status update notification for buyer
@@ -58,7 +88,7 @@ class NotificationService {
       cancelled: 'Your order has been cancelled'
     };
 
-    const notification: Omit<Notification, 'id' | 'createdAt'> = {
+    const notification: Omit<AppNotification, 'id' | 'createdAt'> = {
       userId: orderData.buyerId,
       type: `order_${orderData.status}` as any,
       title: 'Order Update',
@@ -81,7 +111,7 @@ class NotificationService {
     cropType: string;
     contractId: string;
   }): Promise<void> {
-    const notification: Omit<Notification, 'id' | 'createdAt'> = {
+    const notification: Omit<AppNotification, 'id' | 'createdAt'> = {
       userId: contractData.farmerId,
       type: 'contract_created',
       title: 'New Contract Request',
@@ -103,7 +133,7 @@ class NotificationService {
     senderName: string;
     chatRoomId: string;
   }): Promise<void> {
-    const notification: Omit<Notification, 'id' | 'createdAt'> = {
+    const notification: Omit<AppNotification, 'id' | 'createdAt'> = {
       userId: messageData.userId,
       type: 'message_received',
       title: 'New Message',
@@ -145,23 +175,63 @@ class NotificationService {
   // Get notifications for a user
   static subscribeToNotifications(
     userId: string,
-    callback: (notifications: Notification[]) => void
+    callback: (notifications: AppNotification[]) => void,
+    showBrowserNotifications: boolean = true
   ): () => void {
+    if (!userId) {
+      console.warn('No userId provided to subscribeToNotifications');
+      return () => {};
+    }
+
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
-      })) as Notification[];
+    let previousNotifications: AppNotification[] = [];
 
-      callback(notifications);
-    });
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
+        try {
+          const notifications = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date())
+            };
+          }) as AppNotification[];
+
+          // Check for new notifications and show browser notifications
+          if (showBrowserNotifications && previousNotifications.length > 0) {
+            const newNotifications = notifications.filter(
+              newNotif => !previousNotifications.some(prevNotif => prevNotif.id === newNotif.id)
+            );
+
+            // Show browser notification for each new notification
+            newNotifications.forEach(notification => {
+              if (!notification.isRead) {
+                BrowserNotificationService.showNotificationByType(notification);
+              }
+            });
+          }
+
+          previousNotifications = notifications;
+          callback(notifications);
+        } catch (error) {
+          console.error('Error processing notifications snapshot:', error);
+          callback([]);
+        }
+      },
+      (error) => {
+        console.error('Error in notifications subscription:', error);
+        callback([]);
+      }
+    );
+
+    return unsubscribe;
   }
 }
 

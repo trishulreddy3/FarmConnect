@@ -21,19 +21,22 @@ const CropSearch: React.FC = () => {
   useEffect(() => {
     const q = query(
       collection(db, 'crops'),
-      where('status', '==', 'available'),
+      where('status', 'in', ['available', 'reserved']),
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const cropsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        harvestDate: doc.data().harvestDate?.toDate() || new Date(),
-        expiryDate: doc.data().expiryDate?.toDate() || new Date(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as Crop[];
+      const cropsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          harvestDate: data.harvestDate?.toDate ? data.harvestDate.toDate() : (data.harvestDate || new Date()),
+          expiryDate: data.expiryDate?.toDate ? data.expiryDate.toDate() : (data.expiryDate || new Date()),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt || new Date()),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt || new Date())
+        };
+      }) as Crop[];
       
       setCrops(cropsData);
       setLoading(false);

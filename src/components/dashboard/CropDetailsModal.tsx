@@ -164,62 +164,63 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          key="crop-details-modal"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="crop-details-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
+            onClick={onClose}
+          >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+          className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden mx-2 sm:mx-0"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{crop.cropName}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{crop.cropName}</h2>
               {crop.variety && (
-                <p className="text-gray-600">{crop.variety}</p>
+                <p className="text-sm sm:text-base text-gray-600">{crop.variety}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-1 sm:p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="overflow-y-auto max-h-[calc(95vh-60px)] sm:max-h-[calc(90vh-80px)]">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {/* Left Column - Crop Details */}
                 <div className="space-y-6">
                   {/* Crop Image */}
                   <div className="relative">
-                    <div className="h-64 bg-gradient-to-br from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
-                      <Package className="w-20 h-20 text-white opacity-80" />
+                    <div className="h-48 sm:h-64 bg-gradient-to-br from-green-400 to-blue-500 rounded-xl flex items-center justify-center">
+                      <Package className="w-16 h-16 sm:w-20 sm:h-20 text-white opacity-80" />
                     </div>
                     
                     <div className="absolute top-4 left-4 flex flex-col space-y-2">
                       {crop.isOrganic && (
-                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                        <div className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium flex items-center">
                           <Leaf className="w-4 h-4 mr-1" />
                           Organic
                         </div>
                       )}
                       
                       {isExpiringSoon() && (
-                        <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                        <div className="bg-orange-100 text-orange-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                           <Clock className="w-4 h-4 mr-1 inline" />
                           Expires in {getDaysUntilExpiry()} days
                         </div>
@@ -228,11 +229,11 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
 
                     <div className="absolute top-4 right-4">
                       <div className="flex space-x-2">
-                        <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
-                          <Heart className="w-5 h-5 text-gray-600" />
+                        <button className="p-1 sm:p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
+                          <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                         </button>
-                        <button className="p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
-                          <Share2 className="w-5 h-5 text-gray-600" />
+                        <button className="p-1 sm:p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
+                          <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                         </button>
                       </div>
                     </div>
@@ -240,9 +241,9 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
 
                   {/* Crop Information */}
                   <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-gray-900">Crop Information</h3>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Crop Information</h3>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="flex items-center space-x-3">
                         <Package className="w-5 h-5 text-gray-400" />
                         <div>
@@ -302,8 +303,8 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                 {/* Right Column - Farmer Details & Actions */}
                 <div className="space-y-6">
                   {/* Farmer Information */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4">Farmer Information</h3>
+                  <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Farmer Information</h3>
                     
                     {loading ? (
                       <div className="flex items-center justify-center py-8">
@@ -312,19 +313,19 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                     ) : farmer ? (
                       <div className="space-y-4">
                         <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
                             {farmer.photoURL ? (
                               <img 
                                 src={farmer.photoURL} 
                                 alt={farmer.displayName}
-                                className="w-16 h-16 rounded-full object-cover"
+                                className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover"
                               />
                             ) : (
-                              <User className="w-8 h-8 text-white" />
+                              <User className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                             )}
                           </div>
                           <div>
-                            <h4 className="text-lg font-semibold text-gray-900">{farmer.displayName}</h4>
+                            <h4 className="text-base sm:text-lg font-semibold text-gray-900">{farmer.displayName}</h4>
                             <p className="text-gray-600">{farmer.profile.farmName}</p>
                           </div>
                         </div>
@@ -388,29 +389,29 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
 
                   {/* Action Buttons */}
                   <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-gray-900">Actions</h3>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Actions</h3>
                     
                     <div className="grid grid-cols-1 gap-3">
                       <button
                         onClick={handleContactFarmer}
-                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                        className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm sm:text-base"
                       >
-                        <MessageCircle className="w-5 h-5" />
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span>Message Farmer</span>
                       </button>
 
                       {currentUser?.role === 'buyer' && (
                         <button
                           onClick={() => setShowContractCreation(true)}
-                          className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+                          className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm sm:text-base"
                         >
-                          <FileText className="w-5 h-5" />
+                          <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                           <span>Create Direct Contract</span>
                         </button>
                       )}
 
-                      <button className="flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
-                        <Download className="w-5 h-5" />
+                      <button className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm sm:text-base">
+                        <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span>Download Details</span>
                       </button>
                     </div>
@@ -426,15 +427,15 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
               key="contract-form-modal"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 bg-white rounded-2xl p-6"
+              className="absolute inset-0 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Create Contract</h3>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Create Contract</h3>
                 <button
                   onClick={() => setShowContractForm(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
@@ -449,7 +450,7 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                     max={crop.quantity}
                     value={contractData.quantity}
                     onChange={(e) => setContractData({...contractData, quantity: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
                   />
                 </div>
 
@@ -463,7 +464,7 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                     step="0.01"
                     value={contractData.maxPricePerUnit}
                     onChange={(e) => setContractData({...contractData, maxPricePerUnit: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
                   />
                 </div>
 
@@ -475,7 +476,7 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                     type="date"
                     value={contractData.requiredBy}
                     onChange={(e) => setContractData({...contractData, requiredBy: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
                   />
                 </div>
 
@@ -487,21 +488,21 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
                     value={contractData.message}
                     onChange={(e) => setContractData({...contractData, message: e.target.value})}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base"
                     placeholder="Describe your requirements..."
                   />
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
                   <button
                     onClick={handleCreateContract}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    className="flex-1 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
                   >
                     Create Contract
                   </button>
                   <button
                     onClick={() => setShowContractForm(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
                   >
                     Cancel
                   </button>
@@ -510,17 +511,19 @@ const CropDetailsModal: React.FC<CropDetailsModalProps> = ({ crop, isOpen, onClo
             </motion.div>
           )}
         </motion.div>
+      </motion.div>
       )}
     </AnimatePresence>
 
-    {/* Contract Creation Modal */}
-    <ContractCreationModal
-      isOpen={showContractCreation}
-      onClose={() => setShowContractCreation(false)}
-      crop={crop}
-      targetFarmerId={crop.farmerId}
-      targetFarmerName={crop.farmerName}
-    />
+      {/* Contract Creation Modal */}
+      <ContractCreationModal
+        isOpen={showContractCreation}
+        onClose={() => setShowContractCreation(false)}
+        crop={crop}
+        targetFarmerId={crop.farmerId}
+        targetFarmerName={crop.farmerName}
+      />
+    </>
   );
 };
 

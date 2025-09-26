@@ -5,6 +5,7 @@ import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Crop } from '../../types';
+import NotificationService from '../../services/notificationService';
 import toast from 'react-hot-toast';
 
 interface ContactFarmerModalProps {
@@ -57,6 +58,13 @@ const ContactFarmerModal: React.FC<ContactFarmerModalProps> = ({ crop, onClose }
         text: message,
         timestamp: new Date(),
         read: false
+      });
+
+      // Send notification to farmer
+      await NotificationService.notifyMessageReceived({
+        userId: crop.farmerId,
+        senderName: currentUser.displayName || currentUser.email || 'Unknown Buyer',
+        chatRoomId: chatRoomId
       });
 
       toast.success('Message sent successfully!');

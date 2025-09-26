@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
-import { Notification } from '../../types';
+import { AppNotification } from '../../types';
 import NotificationService from '../../services/notificationService';
 import toast from 'react-hot-toast';
 
@@ -25,21 +25,39 @@ interface NotificationCenterProps {
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
   const { currentUser } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!currentUser || !isOpen) return;
+    if (!currentUser || !isOpen) {
+      setLoading(false);
+      return;
+    }
 
-    const unsubscribe = NotificationService.subscribeToNotifications(
-      currentUser.uid,
-      (notificationsData) => {
-        setNotifications(notificationsData);
-        setLoading(false);
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = NotificationService.subscribeToNotifications(
+        currentUser.uid,
+        (notificationsData) => {
+          setNotifications(notificationsData);
+          setLoading(false);
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up notifications subscription:', error);
+      setLoading(false);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('Error unsubscribing from notifications:', error);
+        }
       }
-    );
-
-    return unsubscribe;
+    };
   }, [currentUser, isOpen]);
 
   const getNotificationIcon = (type: string) => {
@@ -233,3 +251,4 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose
 };
 
 export default NotificationCenter;
+

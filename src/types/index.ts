@@ -61,7 +61,7 @@ export interface Crop {
   images: string[];
   description: string;
   certifications: string[];
-  status: 'available' | 'reserved' | 'sold';
+  status: 'available' | 'reserved' | 'sold' | 'sold_out' | 'deleted';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -162,7 +162,7 @@ export interface Order {
   updatedAt: Date;
 }
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   userId: string; // Farmer or buyer ID
   type: 'order_placed' | 'order_confirmed' | 'order_shipped' | 'order_delivered' | 'order_cancelled' | 'contract_created' | 'contract_response' | 'message_received';

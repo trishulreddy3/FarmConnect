@@ -16,6 +16,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Crop, Contract } from '../../types';
+import NotificationService from '../../services/notificationService';
 import toast from 'react-hot-toast';
 
 interface ContractCreationModalProps {
@@ -88,11 +89,21 @@ const ContractCreationModal: React.FC<ContractCreationModalProps> = ({
         updatedAt: new Date()
       };
 
-      await addDoc(collection(db, 'contracts'), {
+      const contractRef = await addDoc(collection(db, 'contracts'), {
         ...contractData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+
+      // Send notification to farmer if it's a direct contract
+      if (targetFarmerId && targetFarmerName) {
+        await NotificationService.notifyContractCreated({
+          farmerId: targetFarmerId,
+          buyerName: currentUser.displayName || currentUser.email || 'Unknown Buyer',
+          cropType: formData.cropType,
+          contractId: contractRef.id
+        });
+      }
 
       toast.success(
         targetFarmerId 
@@ -368,3 +379,4 @@ const ContractCreationModal: React.FC<ContractCreationModalProps> = ({
 };
 
 export default ContractCreationModal;
+

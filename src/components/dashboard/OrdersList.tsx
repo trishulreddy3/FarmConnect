@@ -16,12 +16,19 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Order } from '../../types';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
+import { safeToDate, convertFirestoreDocs } from '../../utils/firestoreUtils';
 
 const OrdersList: React.FC = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Safe date formatting function
+  const safeFormatDate = (date: any, formatString: string = 'MMM dd, yyyy'): string => {
+    const safeDate = safeToDate(date);
+    return isValid(safeDate) ? format(safeDate, formatString) : 'Invalid Date';
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -33,14 +40,9 @@ const OrdersList: React.FC = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        orderDate: doc.data().orderDate?.toDate() || new Date(),
-        deliveryDate: doc.data().deliveryDate?.toDate() || null,
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as Order[];
+      const ordersData = convertFirestoreDocs(snapshot.docs, [
+        'orderDate', 'deliveryDate', 'createdAt', 'updatedAt'
+      ]) as Order[];
       
       setOrders(ordersData);
       setLoading(false);
@@ -134,12 +136,12 @@ const OrdersList: React.FC = () => {
                 <div className="flex items-center space-x-4 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
-                    <span>Ordered {format(order.orderDate, 'MMM dd, yyyy')}</span>
+                    <span>Ordered {safeFormatDate(order.orderDate)}</span>
                   </div>
                   {order.deliveryDate && (
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
-                      <span>Delivery by {format(order.deliveryDate, 'MMM dd, yyyy')}</span>
+                      <span>Delivery by {safeFormatDate(order.deliveryDate)}</span>
                     </div>
                   )}
                 </div>
@@ -195,3 +197,4 @@ const OrdersList: React.FC = () => {
 };
 
 export default OrdersList;
+

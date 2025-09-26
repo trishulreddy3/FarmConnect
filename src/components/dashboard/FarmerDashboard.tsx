@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, MessageCircle, FileText, Sprout, TrendingUp, Clock, DollarSign, Settings, QrCode, Bell } from 'lucide-react';
+import { Plus, Package, MessageCircle, FileText, Sprout, TrendingUp, Clock, DollarSign, Settings, QrCode, Bell, ShoppingCart } from 'lucide-react';
 import CropForm from './CropForm';
 import CropList from './CropList';
 import ContractsList from './ContractsList';
 import ChatsList from './ChatsList';
+import FarmerOrdersList from './FarmerOrdersList';
+import RecentOrders from './RecentOrders';
 import WeatherWidget from '../widgets/WeatherWidget';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SettingsPage from './SettingsPage';
@@ -13,7 +15,9 @@ import NotificationCenter from './NotificationCenter';
 import ModernDashboardWrapper from './ModernDashboardWrapper';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationService from '../../services/notificationService';
-import { Notification } from '../../types';
+import { BrowserNotificationService } from '../../services/browserNotificationService';
+import { AppNotification } from '../../types';
+import { DuplicateOrderCleanup } from '../../utils/duplicateOrderCleanup';
 
 const FarmerDashboard: React.FC = () => {
   const { currentUser } = useAuth();
@@ -21,25 +25,44 @@ const FarmerDashboard: React.FC = () => {
   const [showCropForm, setShowCropForm] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState<Notification[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState<AppNotification[]>([]);
 
   // Listen for notifications
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setUnreadNotifications([]);
+      return;
+    }
 
-    const unsubscribe = NotificationService.subscribeToNotifications(
-      currentUser.uid,
-      (notifications) => {
-        const unread = notifications.filter(n => !n.isRead);
-        setUnreadNotifications(unread);
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      unsubscribe = NotificationService.subscribeToNotifications(
+        currentUser.uid,
+        (notifications) => {
+          const unread = notifications.filter(n => !n.isRead);
+          setUnreadNotifications(unread);
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up notifications subscription:', error);
+      setUnreadNotifications([]);
+    }
+
+    return () => {
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('Error unsubscribing from notifications:', error);
+        }
       }
-    );
-
-    return unsubscribe;
+    };
   }, [currentUser]);
 
   const tabs = [
     { id: 'crops', name: 'My Crops', icon: Package },
+    { id: 'orders', name: 'Orders', icon: ShoppingCart },
     { id: 'contracts', name: 'Contracts', icon: FileText },
     { id: 'messages', name: 'Messages', icon: MessageCircle },
     { id: 'analytics', name: 'Analytics', icon: TrendingUp },
@@ -88,6 +111,43 @@ const FarmerDashboard: React.FC = () => {
                 )}
               </motion.button>
 
+              {/* Test Notification Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('Test notification button clicked');
+                  console.log('BrowserNotificationService available:', typeof BrowserNotificationService);
+                  
+                  try {
+                    BrowserNotificationService.showNotification(
+                      '🧪 Test Notification - Farmer',
+                      {
+                        body: `Hello ${currentUser?.displayName || 'Farmer'}! This is a test notification from your farmer dashboard.`,
+                        tag: 'farmer-test-notification',
+                        requireInteraction: true
+                      }
+                    );
+                    console.log('Notification sent successfully');
+                  } catch (error) {
+                    console.error('Error calling BrowserNotificationService:', error);
+                    // Fallback notification
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                      new Notification('🧪 Test Notification - Farmer', {
+                        body: `Hello ${currentUser?.displayName || 'Farmer'}! This is a test notification from your farmer dashboard.`,
+                        icon: '/favicon.png'
+                      });
+                    } else {
+                      alert('Notifications not available. Please enable notifications in your browser settings.');
+                    }
+                  }
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Bell className="w-4 h-4" />
+                <span>Test Notification</span>
+              </motion.button>
+
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -106,6 +166,22 @@ const FarmerDashboard: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Crop</span>
+              </motion.button>
+
+              {/* Cleanup Duplicate Orders Button */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={async () => {
+                  if (confirm('⚠️ This will remove duplicate orders from the database. Continue?')) {
+                    console.log('🧹 Starting duplicate order cleanup...');
+                    await DuplicateOrderCleanup.cleanup();
+                  }
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Package className="w-4 h-4" />
+                <span>Cleanup Duplicates</span>
               </motion.button>
             </div>
           </div>
@@ -145,6 +221,29 @@ const FarmerDashboard: React.FC = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Recent Orders */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 mb-8"
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                Recent Orders
+              </h2>
+              <button
+                onClick={() => setActiveTab('orders')}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                View All
+              </button>
+            </div>
+            <RecentOrders userType="farmer" limitCount={3} />
+          </div>
+        </motion.div>
 
         {/* Navigation Tabs */}
         <motion.div 
@@ -190,6 +289,23 @@ const FarmerDashboard: React.FC = () => {
                     </h2>
                   </div>
                   <CropList />
+                </motion.div>
+              )}
+
+              {activeTab === 'orders' && (
+                <motion.div
+                  key="orders"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                      Orders from Buyers
+                    </h2>
+                  </div>
+                  <FarmerOrdersList />
                 </motion.div>
               )}
 

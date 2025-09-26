@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, addDoc, orderBy, doc, updateDoc }
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { ChatRoom, Message } from '../../types';
+import NotificationService from '../../services/notificationService';
 import { format, isToday, isYesterday } from 'date-fns';
 
 interface ChatWindowProps {
@@ -73,6 +74,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chatRoom, onBack }) => {
           timestamp: new Date()
         },
         updatedAt: new Date()
+      });
+
+      // Send notification to the other participant
+      const otherParticipantId = currentUser.role === 'farmer' 
+        ? chatRoom.participants.buyerId 
+        : chatRoom.participants.farmerId;
+      
+      const senderName = currentUser.displayName || currentUser.email || 'Unknown User';
+      
+      await NotificationService.notifyMessageReceived({
+        userId: otherParticipantId,
+        senderName: senderName,
+        chatRoomId: chatRoom.id
       });
 
       setNewMessage('');
